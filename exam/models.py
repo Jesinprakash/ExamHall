@@ -3,23 +3,29 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Admin(models.Model):
-    DESIGNATION_CHOICES = [
-        ('Associate Professor', 'Associate Professor'),
-        ('Assistant Professor', 'Assistant Professor'),
-        ('HOD', 'Head of Department'),
-        ('Advisor', 'Advisor'),
-    ]
-
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="admin_profile")  # Link to User
     name = models.CharField(max_length=255)
-
-    designation = models.CharField(max_length=50, choices=DESIGNATION_CHOICES)
-
-    phone_number = models.CharField(max_length=12)
-
+    designation = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=10)
     email = models.EmailField(unique=True)
+    password = models.CharField(max_length=255)  # Store plain text temporarily (will be hashed)
 
     def _str_(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Ensure that when an Admin is created, a User object is also created with the given password."""
+        if not self.user:
+            # Create a user with the provided password
+            user = User.objects.create_user(username=self.email, email=self.email, password=self.password)
+            user.is_staff = True  # Mark as staff but not superuser
+            user.save()
+            self.user = user  # Link the created user
+        else:
+            # If password is updated in the Admin model, update it in the User model
+            self.user.set_password(self.password)
+            self.user.save()
+        super().save(*args, **kwargs)
 
 class Student(models.Model):
     DEPARTMENT_CHOICES = [
